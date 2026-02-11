@@ -1,46 +1,33 @@
-name: CI with OpenVPN
+name: WARP VPN
 
 on:
   push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  vpn-job:
+  vpn:
     runs-on: ubuntu-latest
 
     steps:
-      # Скачиваем репозиторий
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Устанавливаем OpenVPN
-      - name: Install OpenVPN
-        run: sudo apt update && sudo apt install -y openvpn
-
-      # Создаем конфиг из секрета
-      - name: Setup OVPN config
+      - name: Install WARP
         run: |
-          echo "${{ secrets.OVPN_CONFIG }}" > vpn.ovpn
+          curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt update
+          sudo apt install -y cloudflare-warp
 
-      # Поднимаем VPN
-      - name: Start OpenVPN
-        run: sudo openvpn --config vpn.ovpn --daemon
+      - name: Connect WARP
+        run: |
+          sudo warp-cli --accept-tos register
+          sudo warp-cli --accept-tos set-mode warp
+          sudo warp-cli --accept-tos connect
+          sleep 8
+          warp-cli status
 
-      # Ждем чтобы VPN успел подключиться
-      - name: Wait for VPN
-        run: sleep 10
-
-      # Проверяем IP
       - name: Check IP
-        run: curl ifconfig.me
-
-      # Здесь выполняем команды через VPN
-      - name: Run commands via VPN
         run: |
-          echo "Команды теперь идут через VPN"
-          # curl http://private-server.local
-
-      # Отключаем VPN
-      - name: Stop VPN
-        if: always()
-        run: sudo pkill openvpn
+          echo "IP after VPN:"
+          curl ifconfig.me
