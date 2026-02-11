@@ -1,32 +1,14 @@
-name: Test AlimVPN Connection
+name: Azure IP Check
 
 on:
-  workflow_dispatch: # Запуск вручную
-  schedule:
-    - cron: '0 * * * *' # Запуск каждый час
+  workflow_dispatch:
 
 jobs:
-  ss-test:
+  check:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Install Shadowsocks client
-        run: sudo apt update && sudo apt install -y shadowsocks-libev
-
-      - name: Start Shadowsocks local client
+      - name: Show public IP
         run: |
-          ss-local -s pl134.vpnbook.com -p 443 -k "ab9mkvp" -m chacha20-ietf-poly1305 -l 1080 -u &
-
-      - name: Wait for SS local client
-        run: sleep 5
-
-      - name: Send test request "АЛЕ ГАРАЖ"
-        run: |
-          curl --socks5 localhost:1080 http://example.com -w "\nStatus: %{http_code}\n" -o /dev/null
-          echo "АЛЕ ГАРАЖ"
-
-      - name: Cleanup
-        run: pkill ss-local || true
+          curl https://api.ipify.org
+          echo
+          curl https://ipinfo.io
