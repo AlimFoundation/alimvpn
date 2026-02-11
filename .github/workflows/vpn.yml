@@ -1,40 +1,31 @@
-name: WARP VPN
+name: AlimVPN
 
 on:
   push:
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  vpn:
+  vpn-job:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install WARP
-        run: |
-          curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
-          sudo apt update
-          sudo apt install -y cloudflare-warp
+      - name: Install OpenVPN
+        run: sudo apt update && sudo apt install -y openvpn
 
-      - name: Start warp service
+      - name: Create VPN config file
         run: |
-          sudo warp-svc &
-          sleep 5
+          echo "${{ secrets.OVPN_CONFIG }}" > vpn.ovpn
 
-      - name: Accept TOS
+      - name: Create auth file
         run: |
-          yes | warp-cli registration new
+          echo "vpnbook" > vpn.auth
+          echo "ab9mkvp" >> vpn.auth
 
-      - name: Connect WARP
-        run: |
-          warp-cli mode warp
-          warp-cli connect
-          sleep 10
-          warp-cli status
+      - name: Start VPN
+        run: sudo openvpn --config vpn.ovpn --auth-user-pass vpn.auth --daemon
 
       - name: Check IP
-        run: |
-          echo "IP after VPN:"
-          curl ifconfig.me
+        run: curl ifconfig.me
