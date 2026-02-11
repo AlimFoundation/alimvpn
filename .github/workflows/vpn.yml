@@ -1,4 +1,4 @@
-name: CI with VPN
+name: CI with OpenVPN
 
 on:
   push:
@@ -6,33 +6,41 @@ on:
       - main
 
 jobs:
-  build:
+  vpn-job:
     runs-on: ubuntu-latest
 
     steps:
+      # Скачиваем репозиторий
       - uses: actions/checkout@v4
 
-      - name: Install WireGuard
+      # Устанавливаем OpenVPN
+      - name: Install OpenVPN
+        run: sudo apt update && sudo apt install -y openvpn
+
+      # Создаем конфиг из секрета
+      - name: Setup OVPN config
         run: |
-          sudo apt update
-          sudo apt install -y wireguard
+          echo "${{ secrets.OVPN_CONFIG }}" > vpn.ovpn
 
-      - name: Setup WireGuard config
-        run: |
-          echo "${{ secrets.WIREGUARD_CONFIG }}" > wg0.conf
-          sudo mv wg0.conf /etc/wireguard/wg0.conf
-          sudo chmod 600 /etc/wireguard/wg0.conf
+      # Поднимаем VPN
+      - name: Start OpenVPN
+        run: sudo openvpn --config vpn.ovpn --daemon
 
-      - name: Start VPN
-        run: sudo wg-quick up wg0
+      # Ждем чтобы VPN успел подключиться
+      - name: Wait for VPN
+        run: sleep 10
 
+      # Проверяем IP
       - name: Check IP
         run: curl ifconfig.me
 
-      - name: Your commands
+      # Здесь выполняем команды через VPN
+      - name: Run commands via VPN
         run: |
-          echo "Теперь тут выполняются команды через VPN"
+          echo "Команды теперь идут через VPN"
+          # curl http://private-server.local
 
+      # Отключаем VPN
       - name: Stop VPN
         if: always()
-        run: sudo wg-quick down wg0
+        run: sudo pkill openvpn
